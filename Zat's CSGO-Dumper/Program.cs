@@ -52,18 +52,6 @@ namespace Zat_s_CSGO_Dumper
                 dllEngineAddress = GetModuleBaseAddressByName(scanner.Process, @"engine.dll").ToInt32();
                 dllClientSize = GetModuleSize(scanner.Process, @"bin\client.dll");
                 dllEngineSize = GetModuleSize(scanner.Process, @"engine.dll");
-                //if (dllClientAddress == 0 || dllClientSize == 0L)
-                //{
-                //    PrintError(" > NOPE: Module client.dll not found");
-                //    Console.ReadKey();
-                //    return;
-                //}
-                //if (dllEngineAddress == 0 || dllEngineSize == 0)
-                //{
-                //    PrintError(" > NOPE: Module engine.dll not found");
-                //    Console.ReadKey();
-                //    return;
-                //}
             } while (scanner == null || dllEngineAddress == 0 || dllClientAddress == 0);
 
             PrintSideInfo("[client.dll:0x{0}:{1}]", dllClientAddress.ToString("X").PadLeft(8, '0'), ByteSizeToString(dllClientSize));
@@ -398,16 +386,16 @@ namespace Zat_s_CSGO_Dumper
             byte[] pattern = new byte[]{ 
                                                                           0x00, 0x00, 0x80, 0xBF, /**/ 0x00, 0x00, 0x00, 0x00, /**/ //-1
                 0x00, 0x00, 0x00, 0x00, /**/ 0x00, 0x00, 0x00, 0x00, /**/ 0x00, 0x00, 0x80, 0xBF, /**/ 0x00, 0x00, 0x00, 0x00, /**/ //-1
-                0x00, 0x00, 0x00, 0x00, /**/ 0x00, 0x00, 0x00, 0x00, /**/ 0x00, 0x00, 0x00, 0x00, /**/ 0x00, 0x00, 0x00, 0x00, /**/ //blank
-                0x00, 0x00, 0x00, 0x00, /**/ 0x00, 0x00, 0x00, 0x00, /**/ 0x00, 0x00, 0x00, 0x00, /**/ 0x00, 0x00, 0x00, 0x00, /**/ //blank
-                0x00, 0x00, 0x00, 0x00, /**/ 0x00, 0x00, 0x00, 0x00, /**/ 0x00, 0x00, 0x00, 0x00, /**/ 0x00, 0x00, 0x80, 0xBF /**/ //-1
+                0x00, 0x00, 0x00, 0x00, /**/ 0x00, 0x00, 0x00, 0x00, /**/ 0x00, 0x00, 0x00, 0x00, /**/ 0x00, 0x00, 0x00, 0x00, /**/ //skip
+                0x00, 0x00, 0x00, 0x00, /**/ 0x00, 0x00, 0x00, 0x00, /**/ 0x00, 0x00, 0x00, 0x00, /**/ 0x00, 0x00, 0x00, 0x00, /**/ //skip
+                0x00, 0x00, 0x00, 0x00, /**/ 0x00, 0x00, 0x00, 0x00, /**/ 0x00, 0x00, 0x00, 0x00, /**/ 0x00, 0x00, 0x80, 0xBF  /**/ //-1
                 };
 
-            string mask =                               "??xx" + /**/ "????" +
-                            "xxxx" + /**/ "xxxx" + /**/ "??xx" + /**/ "xxxx" +
-                            "????" + /**/ "????" + /**/ "????" + /**/ "????" +
-                            "????" + /**/ "????" + /**/ "????" + /**/ "????" +
-                            "????" + /**/ "????" + /**/ "????" + /**/ "??xx";
+            string mask =                               "??xx" + /**/ "????" + //-1
+                            "xxxx" + /**/ "xxxx" + /**/ "??xx" + /**/ "xxxx" + //-1
+                            "????" + /**/ "????" + /**/ "????" + /**/ "????" + //skip
+                            "????" + /**/ "????" + /**/ "????" + /**/ "????" + //skip
+                            "????" + /**/ "????" + /**/ "????" + /**/ "??xx";  //-1
 
             int address;
 
@@ -416,18 +404,9 @@ namespace Zat_s_CSGO_Dumper
             address -= dllClientAddress;
 
             PrintAddress("ViewMatrix1", address);
-            PrintAddress("ViewMatrix2", address + 0x110);
+            PrintAddress("ViewMatrix2", address + 0x110); //VMatrix2 and 3 got a fixed distance to VMatrix1 - Simply add the distances to the address.
             PrintAddress("ViewMatrix3", address + 0x420);
         }
-        //private static void FindViewMatrix()
-        //{
-        //    byte[] pattern = new byte[] { 0xA1, 0x00, 0x00, 0x00, 0x00, 0x83, 0xF8, 0x01, 0x7E, 0x11, 0x69, 0xC8 };
-        //    string mask = MaskFromPattern(pattern);
-            
-        //    int addr = FindAddress(pattern, 0, mask, dllEngineAddress, dllEngineSize, true);
-        //    addr -= dllEngineAddress;
-        //    PrintAddress("[Engine] VMatrixBase", addr);
-        //}
         #endregion
         #region CONTROLS
         private static void FindAttack()
@@ -602,6 +581,15 @@ namespace Zat_s_CSGO_Dumper
         #endregion
 
         #region HELPERS
+        /// <summary>
+        /// Promts the user to press a key.
+        /// Keeps prompting until user enters a key that is contained in 'keys'.
+        /// Returns the pressed key.
+        /// </summary>
+        /// <param name="message"></param>
+        /// <param name="defaultKey"></param>
+        /// <param name="keys"></param>
+        /// <returns></returns>
         private static ConsoleKey GetKeyFromUser(string message, ConsoleKey defaultKey, params ConsoleKey[] keys)
         {
             List<ConsoleKey> lKeys = new List<ConsoleKey>(keys);
@@ -614,6 +602,13 @@ namespace Zat_s_CSGO_Dumper
             Console.WriteLine();
             return key;
         }
+
+        /// <summary>
+        /// Creates a mask of the given pattern, 
+        /// making 0x00's wildcards ('?') and anything else exact matches ('x')
+        /// </summary>
+        /// <param name="pattern"></param>
+        /// <returns></returns>
         private static string MaskFromPattern(byte[] pattern)
         {
             StringBuilder builder = new StringBuilder();
@@ -631,6 +626,14 @@ namespace Zat_s_CSGO_Dumper
                 builder.Append(chr, length);
             return builder.ToString();
         }
+        /// <summary>
+        /// Creates a pattern of the given mask,
+        /// translating 'x' to valX and everything else (wildcards) to valW
+        /// </summary>
+        /// <param name="mask"></param>
+        /// <param name="valX"></param>
+        /// <param name="valW"></param>
+        /// <returns></returns>
         private static byte[] PatternFromMask(string mask, byte valX, byte valW)
         {
             byte[] pattern = new byte[mask.Length];
@@ -645,6 +648,16 @@ namespace Zat_s_CSGO_Dumper
 
             return pattern;
         }
+        /// <summary>
+        /// Wraps the SigScanner
+        /// </summary>
+        /// <param name="pattern"></param>
+        /// <param name="offset"></param>
+        /// <param name="mask"></param>
+        /// <param name="dllAddress"></param>
+        /// <param name="dllSize"></param>
+        /// <param name="wNonZero"></param>
+        /// <returns></returns>
         private static int FindAddress(byte[] pattern, int offset, string mask, int dllAddress, long dllSize, bool wNonZero = false)
         {
             int address = 0;
@@ -657,6 +670,9 @@ namespace Zat_s_CSGO_Dumper
 
             return address;
         }
+        /// <summary>
+        /// Saves the offsets contained in 'offsets' to file
+        /// </summary>
         private static void SaveOffsets()
         {
             try
@@ -679,6 +695,11 @@ namespace Zat_s_CSGO_Dumper
                 PrintError("An error occured: {0}", ex.Message);
             }
         }
+        /// <summary>
+        /// Converts a size in bytes to a more readable size
+        /// </summary>
+        /// <param name="size"></param>
+        /// <returns></returns>
         private static string ByteSizeToString(long size)
         {
             string[] sizes = new string[] { "B", "KB", "MB", "GB", "TB" };
@@ -767,7 +788,7 @@ namespace Zat_s_CSGO_Dumper
         #endregion
         #endregion
 
-        #region WINAPI
+        #region WINAPI & MEMORY-STUFF
         [DllImport("kernel32.dll", SetLastError = true)]
         public static extern bool ReadProcessMemory(
             IntPtr hProcess,
