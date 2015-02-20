@@ -53,6 +53,7 @@ namespace Zat_s_CSGO_Dumper
                 dllClientSize = GetModuleSize(scanner.Process, @"bin\client.dll");
                 dllEngineSize = GetModuleSize(scanner.Process, @"engine.dll");
             } while (scanner == null || dllEngineAddress == 0 || dllClientAddress == 0);
+            Console.CursorLeft = x;
 
             PrintSideInfo("[client.dll:0x{0}:{1}]", dllClientAddress.ToString("X").PadLeft(8, '0'), ByteSizeToString(dllClientSize));
             PrintSideInfo("[engine.dll:0x{0}:{1}]", dllEngineAddress.ToString("X").PadLeft(8, '0'), ByteSizeToString(dllEngineSize));
@@ -82,8 +83,17 @@ namespace Zat_s_CSGO_Dumper
             FindCrosshairIndex();
             PrintStatus("Scanning for GlowObjectBase...");
             FindGlowObjectBase();
-            PrintStatus("Scanning for VMatrix...");
-            FindViewMatrix();
+
+
+            if (GetKeyFromUser("Dumping VMatrices requires you to join a server. Did you join a server and want to dump VMatrices? [Y/N]", ConsoleKey.Enter, ConsoleKey.Y, ConsoleKey.N) == ConsoleKey.Y)
+            {
+                PrintStatus("Scanning for VMatrix...");
+                FindViewMatrix();
+            }
+            else
+            {
+                offsets.Add("[VMatrices NOT DUMPED]", string.Empty);
+            }
 
             PrintInfo("~ Controls");
             PrintStatus("Scanning for attack...");
@@ -108,7 +118,7 @@ namespace Zat_s_CSGO_Dumper
             PrintStatus("* Dump finished *");
             if (offsets.Count > 0)
             {
-                if (GetKeyFromUser("Would you like to save these offsets [Y/N]", ConsoleKey.Enter, ConsoleKey.Y, ConsoleKey.N) == ConsoleKey.Y)
+                if (GetKeyFromUser("Would you like to save these offsets? [Y/N]", ConsoleKey.Enter, ConsoleKey.Y, ConsoleKey.N) == ConsoleKey.Y)
                 {
                     SaveOffsets();
                 }
@@ -661,7 +671,7 @@ namespace Zat_s_CSGO_Dumper
         private static int FindAddress(byte[] pattern, int offset, string mask, int dllAddress, long dllSize, bool wNonZero = false)
         {
             int address = 0;
-            for (int i = 0; i < dllSize && address == 0; i += (int)(MAX_DUMP_SIZE * 0.75))
+            for (int i = 0; i < dllSize && address == 0; i += MAX_DUMP_SIZE)
             {
                 scanner.Address = new IntPtr(dllAddress + i);
                 address = scanner.FindPattern(pattern, mask, offset, wNonZero).ToInt32();
@@ -685,7 +695,10 @@ namespace Zat_s_CSGO_Dumper
                     writer.WriteLine("Dumped {0}, {1}", DateTime.Now.ToShortDateString(), DateTime.Now.ToLongTimeString());
                     writer.WriteLine(line);
                     foreach (string key in offsets.Keys)
-                        writer.WriteLine(" {0} = {1}", key, offsets[key]);
+                        if (offsets[key] != string.Empty)
+                            writer.WriteLine(" {0} = {1}", key, offsets[key]);
+                        else
+                            writer.WriteLine(" {0}", key);
                     writer.WriteLine();
                 }
                 PrintInfo(" > Offsets saved.");
