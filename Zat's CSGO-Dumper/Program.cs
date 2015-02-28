@@ -83,18 +83,8 @@ namespace Zat_s_CSGO_Dumper
             FindCrosshairIndex();
             PrintStatus("Scanning for GlowObjectBase...");
             FindGlowObjectBase();
-
-
-            if (GetKeyFromUser("Dumping VMatrices requires you to join a server. Did you join a server and want to dump VMatrices? [Y/N]", ConsoleKey.Enter, ConsoleKey.Y, ConsoleKey.N) == ConsoleKey.Y)
-            {
-                PrintStatus("Scanning for VMatrix...");
-                FindViewMatrix();
-            }
-            else
-            {
-                offsets.Add("[VMatrices NOT DUMPED]", string.Empty);
-            }
-
+            PrintStatus("Scanning for VMatrix...");
+            FindViewMatrix();
             PrintInfo("~ Controls");
             PrintStatus("Scanning for attack...");
             FindAttack();
@@ -393,25 +383,50 @@ namespace Zat_s_CSGO_Dumper
         }
         private static void FindViewMatrix()
         {
-            byte[] pattern = new byte[]{ 
-                                                                          0x00, 0x00, 0x80, 0xBF, /**/ 0x00, 0x00, 0x00, 0x00, /**/ //-1
-                0x00, 0x00, 0x00, 0x00, /**/ 0x00, 0x00, 0x00, 0x00, /**/ 0x00, 0x00, 0x80, 0xBF, /**/ 0x00, 0x00, 0x00, 0x00, /**/ //-1
-                0x00, 0x00, 0x00, 0x00, /**/ 0x00, 0x00, 0x00, 0x00, /**/ 0x00, 0x00, 0x00, 0x00, /**/ 0x00, 0x00, 0x00, 0x00, /**/ //skip
-                0x00, 0x00, 0x00, 0x00, /**/ 0x00, 0x00, 0x00, 0x00, /**/ 0x00, 0x00, 0x00, 0x00, /**/ 0x00, 0x00, 0x00, 0x00, /**/ //skip
-                0x00, 0x00, 0x00, 0x00, /**/ 0x00, 0x00, 0x00, 0x00, /**/ 0x00, 0x00, 0x00, 0x00, /**/ 0x00, 0x00, 0x80, 0xBF  /**/ //-1
-                };
+            #region Obsolete
+            /*
+             * http://www.unknowncheats.me/forum/1161791-post67.html
+             * The user Speedi13 found a more elegant and faster way to find the vmatrices by finding the function that uses them
+             * It's actually way faster than this method (user must play on a server in order to find the VMatrix this way):
+             */
+            //byte[] pattern = new byte[]{ 
+            //                                                              0x00, 0x00, 0x80, 0xBF, /**/ 0x00, 0x00, 0x00, 0x00, /**/ //-1
+            //    0x00, 0x00, 0x00, 0x00, /**/ 0x00, 0x00, 0x00, 0x00, /**/ 0x00, 0x00, 0x80, 0xBF, /**/ 0x00, 0x00, 0x00, 0x00, /**/ //-1
+            //    0x00, 0x00, 0x00, 0x00, /**/ 0x00, 0x00, 0x00, 0x00, /**/ 0x00, 0x00, 0x00, 0x00, /**/ 0x00, 0x00, 0x00, 0x00, /**/ //skip
+            //    0x00, 0x00, 0x00, 0x00, /**/ 0x00, 0x00, 0x00, 0x00, /**/ 0x00, 0x00, 0x00, 0x00, /**/ 0x00, 0x00, 0x00, 0x00, /**/ //skip
+            //    0x00, 0x00, 0x00, 0x00, /**/ 0x00, 0x00, 0x00, 0x00, /**/ 0x00, 0x00, 0x00, 0x00, /**/ 0x00, 0x00, 0x80, 0xBF  /**/ //-1
+            //    };
 
-            string mask =                               "??xx" + /**/ "????" + //-1
-                            "xxxx" + /**/ "xxxx" + /**/ "??xx" + /**/ "xxxx" + //-1
-                            "????" + /**/ "????" + /**/ "????" + /**/ "????" + //skip
-                            "????" + /**/ "????" + /**/ "????" + /**/ "????" + //skip
-                            "????" + /**/ "????" + /**/ "????" + /**/ "??xx";  //-1
+            //string mask =                               "??xx" + /**/ "????" + //-1
+            //                "xxxx" + /**/ "xxxx" + /**/ "??xx" + /**/ "xxxx" + //-1
+            //                "????" + /**/ "????" + /**/ "????" + /**/ "????" + //skip
+            //                "????" + /**/ "????" + /**/ "????" + /**/ "????" + //skip
+            //                "????" + /**/ "????" + /**/ "????" + /**/ "??xx";  //-1
 
-            int address;
 
-            address = FindAddress(pattern, 0, mask, dllClientAddress, dllClientSize);
-            address += 22 * sizeof(float);
+            //address = FindAddress(pattern, 0, mask, dllClientAddress, dllClientSize);
+            //address += 22 * sizeof(float);
+            //address -= dllClientAddress;
+            #endregion
+
+            int address = 0;
+            byte[] pattern = {
+                                0x53, 0x8B, 0xDC, 0x83, 0xEC, 0x08, 0x83, 0xE4,
+                                0xF0, 0x83, 0xC4, 0x04, 0x55, 0x8B, 0x6B, 0x04,
+                                0x89, 0x6C, 0x24, 0x04, 0x8B, 0xEC, 0xA1, 0x00,
+                                0x00, 0x00, 0x00, 0x81, 0xEC, 0x98, 0x03, 0x00,
+                                0x00
+                                };
+            address = FindAddress(pattern, 0, "xxxxxxxxxxxxxxxxxxxxxxx????xxxxxx", dllClientAddress, dllClientSize);
+            if(address == 0)
+            {
+                Program.PrintError("Could not find VMatrices! (nullpointer)");
+                offsets.Add("[VMatrices nullptr]", string.Empty);
+                return;
+            }
+            address = ReadInt32(scanner.Process.Handle, address + 0x4EE);
             address -= dllClientAddress;
+            address += 0x80;
 
             PrintAddress("ViewMatrix1", address);
             PrintAddress("ViewMatrix2", address + 0x110); //VMatrix2 and 3 got a fixed distance to VMatrix1 - Simply add the distances to the address.
